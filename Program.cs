@@ -14,6 +14,23 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    if (!db.Rooms.Any())
+    {
+        db.Rooms.AddRange(
+            new Room { Name = "A", Capacity = 2, PositionX = 642, PositionY = 484 },
+            new Room { Name = "B", Capacity = 2, PositionX = 642, PositionY = 314 },
+            new Room { Name = "C", Capacity = 4, PositionX = 592, PositionY = 148 },
+            new Room { Name = "D", Capacity = 8, PositionX = 272, PositionY = 195 },
+            new Room { Name = "E", Capacity = 4, PositionX = 272, PositionY = 459 }
+        );
+        db.SaveChanges();
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
