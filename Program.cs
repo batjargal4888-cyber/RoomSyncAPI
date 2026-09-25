@@ -29,6 +29,16 @@ using (var scope = app.Services.CreateScope())
         );
         db.SaveChanges();
     }
+
+    if (!db.Users.Any())
+    {
+        db.Users.AddRange(
+            new User { Name = "Batja", Email = "batja@example.com", Role = "Admin" },
+            new User { Name = "Tanaka", Email = "tanaka@example.com" },
+            new User { Name = "Suzuki", Email = "suzuki@example.com" }
+        );
+        db.SaveChanges();
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -93,4 +103,102 @@ app.MapDelete("/api/rooms/{id}", async (int id, AppDbContext db) =>
 })
 .WithName("DeleteRoom");
 
+// ===== user API =====
+
+// user choose dropdown user list (password not given ofc)
+app.MapGet("/api/users", async (AppDbContext db) =>
+    await db.Users
+        .Select(u => new { u.Id, u.Name })
+        .ToListAsync())
+    .WithName("GetUsers");
+
+// ===== booking API =====
+
+// that 1 room reservations that day
+app.MapGet("/api/bookings", async (int roomId, DateTime date, AppDbContext db) =>
+{
+    var dayStart = date.Date;
+    var dayEnd = dayStart.AddDays(1);
+
+    var bookings = await db.Bookings
+        .Where(b => b.RoomId == roomId
+                && b.StartTime < dayEnd
+                && b.EndTime > dayStart)
+        .OrderBy(b => b.StartTime)
+        .Select(b => new
+        {
+            b.Id,
+            b.RoomId,
+            b.UserId,
+            UserName = b.User!.Name,
+            b.Purpose,
+            b.StartTime,
+            b.EndTime,
+            b.CreatedAt
+        })
+        .ToListAsync();
+
+    return Results.Ok(bookings);
+})
+.WithName("GetBookings");
+
+// new reservation check overlap
+app.MapPost("/api/bookings", async (CreateBookingRequest req, AppDbContext db) =>
+{
+    if (req.EndTime <= req.StartTime)
+        return Results.BadRequest(new { message = "終了時刻は開始時刻より後にしてください。" });
+
+    if (!await db.Rooms.AnyAsync(r => r.Id == req.RoomId))
+        return Results.BadRequest(new { message = "会議室が存在しません。" });
+
+    if (!await db.Users.AnyAsync(u => u.Id == req.UserId))
+        return Results.BadRequest(new { message = "ユーザーが存在しません。" });
+
+    bool overlaps = await db.Bookings.AnyAsync(b =>
+        b.RoomId == req.RoomId &&
+        b.StartTime < req.EndTime &&
+        req.StartTime < b.EndTime);
+
+    if (overlaps)
+        return Results.Conflict(new { message = "この時間帯はすでに予約されています。" });
+
+    var booking = new Booking
+    {
+        RoomId = req.RoomId,
+        UserId = req.UserId,
+        Purpose = req.Purpose,
+        StartTime = req.StartTime,
+        EndTime = req.EndTime
+    };
+
+    db.Bookings.Add(booking);
+    await db.SaveChangesAsync();
+
+    return Results.Created($"/api/bookings/{booking.Id}", new
+    {
+        booking.Id,
+        booking.RoomId,
+        booking.UserId,
+        booking.Purpose,
+        booking.StartTime,
+        booking.EndTime,
+        booking.CreatedAt
+    });
+})
+.WithName("CreateBooking");
+
+// cancel booking
+app.MapDelete("/api/bookings/{id}", async (int id, AppDbContext db) =>
+{
+    var booking = await db.Bookings.FindAsync(id);
+    if (booking is null) return Results.NotFound();
+
+    db.Bookings.Remove(booking);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+.WithName("DeleteBooking");
+
 app.Run();
+
+record CreateBookingRequest(int RoomId, int UserId, string Purpose, DateTime StartTime, DateTime EndTime);

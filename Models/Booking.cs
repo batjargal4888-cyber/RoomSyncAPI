@@ -15,5 +15,7 @@ namespace RoomSyncApi.Models
         public DateTime EndTime { get; set; } // zahialgiin duusah tsag
 
         public string Purpose { get; set; } = ""; // zahialgiin zorilgo (jishee n "Client meeting")        
+
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }
