@@ -12,5 +12,8 @@ namespace RoomSyncApi.Models
         // floor plan position (coordinate)
         public double PositionX { get; set; }
         public double PositionY { get; set; }
+
+        public int Width { get; set; }
+        public int Height { get; set; }
     }
 }

@@ -21,11 +21,11 @@ using (var scope = app.Services.CreateScope())
     if (!db.Rooms.Any())
     {
         db.Rooms.AddRange(
-            new Room { Name = "A", Capacity = 2, PositionX = 642, PositionY = 484 },
-            new Room { Name = "B", Capacity = 2, PositionX = 642, PositionY = 314 },
-            new Room { Name = "C", Capacity = 4, PositionX = 592, PositionY = 148 },
-            new Room { Name = "D", Capacity = 8, PositionX = 272, PositionY = 195 },
-            new Room { Name = "E", Capacity = 4, PositionX = 272, PositionY = 459 }
+            new Room { Name = "A", Capacity = 2, PositionX = 585, PositionY = 565, Width = 245, Height = 280 },
+            new Room { Name = "B", Capacity = 2, PositionX = 585, PositionY = 290, Width = 245, Height = 275 },
+            new Room { Name = "C", Capacity = 4, PositionX = 380, PositionY = 0,   Width = 450, Height = 290 },
+            new Room { Name = "D", Capacity = 8, PositionX = 0,   PositionY = 0,   Width = 375, Height = 670 },
+            new Room { Name = "E", Capacity = 4, PositionX = 0,   PositionY = 670, Width = 370, Height = 275 }
         );
         db.SaveChanges();
     }
@@ -50,6 +50,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 // ===== room CRUD API =====
 
@@ -85,6 +87,8 @@ app.MapPut("/api/rooms/{id}", async (int id, Room updatedRoom, AppDbContext db) 
     room.Capacity = updatedRoom.Capacity;
     room.PositionX = updatedRoom.PositionX;
     room.PositionY = updatedRoom.PositionY;
+    room.Width = updatedRoom.Width;
+    room.Height = updatedRoom.Height;
 
     await db.SaveChangesAsync();
     return Results.Ok(room);
