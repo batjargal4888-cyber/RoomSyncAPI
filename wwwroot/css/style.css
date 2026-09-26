@@ -1,56 +1,101 @@
+/* =====  1. Ungunii huwisagch ===== */
+:root {
+    --bg: #0b1e3a;
+    --paper: rgba(16, 49, 77, 0.6);
+    --line: #e8f0ff;
+    --line-dim: rgba(232, 240, 255, 0.35);
+    --grid: rgba(232, 240, 255, 0.06);
+    --free: #4ade80;
+    --busy: #f87171;
+    --selected: #facc15;
+    --font: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    --mono: "SF Mono", "Courier New", monospace;
+}
+
 * {
     box-sizing: border-box;
 }
 
+/* =====  2. Dewsger (zurgiin tsaasnii tor) ===== */
 body {
-    font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
-    background: #f4f5f7;
     margin: 0;
+    min-height: 100vh;
+    font-family: var(--font);
+    color: var(--line);
+    background-color: var(--bg);
+    background-image: 
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+}
+
+/* =====  3. Header ===== */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--line-dim);
+}
+
+.brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.brand-name {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.brand-sub {
+    font-family: var(--mono);
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 14px;
+}
+
+/* =====  4. 2 baganatai layout ===== */
+.layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.map-card,
+.panel {
+    background: var(--paper);
+    border: 1px solid var(--line-dim);
     padding: 16px;
 }
 
-h1 {
-    font-size: clamp(18px, 4vw, 24px);
-    margin: 0 0 16px;
-    text-align: center;
-}
-
-#floor {
+/* =====  5. plan zurah talbai ===== */
+.floor {
     position: relative;
     width: 100%;
-    max-width: 800px;
-    aspect-ratio: 800 / 600;
-    margin: 0 auto;
-    background: #fff;
-    border: 2px solid #ccc;
-    border-radius: 8px;
+    max-width: 560px;
+    aspect-ratio: 830 / 1160;
+    margin: 16px auto 0;
+    border: 1px solid var(--line);
 }
 
-.room {
-    position: absolute;
-    width: 12.5%;
-    height: 11.7%;
-    background: #d9f2e3;
-    border: 2px solid #3a9d5d;
-    border-radius: 6px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: transform 0.1s;
-}
-
-.room:hover {
-    transform: scale(1.05);
-}
-
-.room .name {
-    font-weight: bold;
-    font-size: clamp(12px, 2.5vw, 18px);
-}
-
-.room .cap {
-    font-size: clamp(9px, 1.5vw, 12px);
-    color: #555;
+/* =====  6. phone ===== */
+@media (max-width: 768px) {
+    .layout {
+        grid-template-columns: 1fr;
+        padding: 12px;
+    }
 }

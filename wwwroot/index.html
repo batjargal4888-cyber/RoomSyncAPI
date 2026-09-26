@@ -7,8 +7,60 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <h1>会議室予約くん</h1>
-    <div id="floor"></div>
+    <header class="app-header">
+        <div class="brand">
+            <span class="brand-name">会議室予約くん</span>
+            <span class="brand-sub">フロアマップ</span>
+        </div>
+
+        <div class="header-right">
+            <div class="date-nav">
+                <button type="button" id="prevDay" aria-label="前の日">‹</button>
+                <span id="dateLabel">２０２６年９月２８日（月）</span>
+                <button type="button" id="nextDay" aria-label="次の日">›</button>
+            </div>
+            <span id="nowLabel" class="now-label">14:20 現在</span>
+            <div class="user">
+                <span class="avatar">B</span>
+                <span>Batja</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="layout">
+        <section class="map-card">
+            <div class="map-head">
+                <h2>3F フロア</h2>
+                <div class="legend">
+                    <span class="legend-item"><span class="swatch free"></span>空き</span>
+                    <span class="legend-item"><span class="swatch busy"></span>使用中</span>
+                    <span class="legend-item"><span class="swatch selected"></span>選択中</span>
+                </div>
+            </div>
+            <div id="floor" class="floor"></div>
+        </section>
+
+        <section class="panel">
+            <div class="stats">
+                <div class="stat-card">
+                    <span class="stat-label">会議室</span>
+                    <span class="stat-value"><span id="statTotal">-</span> 室</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">今空いている</span>
+                    <span class="stat-value"><span id="statFree">-</span> 室</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">使用中</span>
+                    <span class="stat-value busy"><span id="statBusy">-</span> 室</span>
+                </div>
+            </div>
+
+            <div id="roomDetail" class="room-detail">
+                <p class="placeholder">プランから会議室を選択してください</p>
+            </div>
+        </section>
+    </main>
     <script src="js/app.js"></script>
 </body>
 </html>
