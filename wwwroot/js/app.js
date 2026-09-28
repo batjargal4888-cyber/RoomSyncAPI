@@ -8,6 +8,14 @@ let selectedRoomId = null;
 // Date currently shown (defaults to today)
 let currentDate = new Date();
 
+// Logged-in user (fixed for now, until login is added)
+const CURRENT_USER_ID = 1;
+
+// Bookable hours, in 30-minute slots
+const OPEN_HOUR = 9;
+const CLOSE_HOUR = 18;
+const SLOT_MINUTES = 30;
+
 // Room divs by id (to update their colors)
 const roomElements = {};
 
@@ -27,6 +35,29 @@ function formatDateParam(date) {
 // Extract "HH:mm" from "2026-09-28T10:00:00"
 function formatTime(iso) {
     return iso.slice(11, 16);
+}
+
+// Minutes from midnight -> "HH:mm"
+function toHHMM(minutes) {
+    const h = String(Math.floor(minutes / 60)).padStart(2, "0");
+    const m = String(minutes % 60).padStart(2, "0");
+    return `${h}:${m}`;
+}
+
+// "HH:mm" -> minutes from midnight
+function toMinutes(hhmm) {
+    const [h, m] = hhmm.split(":").map(Number);
+    return h * 60 + m;
+}
+
+// <option> tags every 30 minutes between two times
+function buildTimeOptions(fromMinutes, toMinutes, selectedMinutes) {
+    let html = "";
+    for (let t = fromMinutes; t <= toMinutes; t += SLOT_MINUTES) {
+        const selected = t === selectedMinutes ? "selected" : "";
+        html += `<option value="${toHHMM(t)}" ${selected}>${toHHMM(t)}</option>`;
+    }
+    return html;
 }
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -99,7 +130,7 @@ function selectRoom(room, div) {
     loadBookings(room.id);
 }
 
-// Render room info into the side panel
+// Render room info & booking form into the side panel
 function renderRoomDetail(room) {
     const detail = document.getElementById("roomDetail");
     detail.innerHTML = `
@@ -111,7 +142,34 @@ function renderRoomDetail(room) {
         <ul id="bookingList" class="booking-list">
             <li class="booking-empty">読み込み中...</li>
         </ul>
+
+        <button type="button" id="addBookingBtn" class="add-booking-btn">✛ 予約を追加</button>
+
+        <form id="bookingForm" class="booking-form" hidden>
+            <h4 class="detail-subtitle">新規予約</h4>
+            <div class="time-row">
+                <label>開始
+                    <select id="startTime"></select>
+                </label>
+                <label>終了
+                    <select id="endTime"></select>
+                </label>
+            </div>
+            <label>目的
+                <input type="text" id="purpose" maxlength="50" placeholder="例：定例ミーティング">
+            </label>
+            <p id="formError" class="form-error"></p>
+            <div class="form-actions">
+                <button type="button" id="cancelBtn" class="btn-secondary">キャンセル</button>
+                <button type="submit" class="btn-primary">予約する</button>
+            </div>
+        </form>
     `;
+
+    document.getElementById("addBookingBtn").onclick = () => openBookingForm();
+    document.getElementById("cancelBtn").onclick = closeBookingForm;
+    document.getElementById("startTime").onchange = updateEndOptions;
+    document.getElementById("bookingForm").onsubmit = e => submitBooking(e, room.id);
 }
 
 // Fetch bookings for the room on the current date
@@ -190,6 +248,93 @@ async function loadStatus() {
     const total = Object.keys(roomElements).length;
     document.getElementById("statFree").textContent = total - busyIds.size;
     document.getElementById("statBusy").textContent = busyIds.size;
+}
+
+// Next 30-minutes slot from now (opening time on other days)
+function defaultStartTime() {
+    const open = OPEN_HOUR * 60;
+    const lastStart = CLOSE_HOUR * 60 - SLOT_MINUTES;
+    if (!isToday(currentDate)) return open;
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const next = Math.ceil(nowMinutes / SLOT_MINUTES) * SLOT_MINUTES;
+    return Math.min(Math.max(next, open), lastStart);
+}
+
+// Keep end-time options after the start time (default: +1 hour)
+function updateEndOptions() {
+    const start = toMinutes(document.getElementById("startTime").value);
+    const close = CLOSE_HOUR * 60;
+    const defaultEnd = Math.min(start + 60, close);
+    document.getElementById("endTime").innerHTML =
+        buildTimeOptions(start + SLOT_MINUTES, close, defaultEnd);
+}
+
+// Show the booking form (start time can be given, e.g. from the timeline)
+function openBookingForm(start = defaultStartTime()) {
+    document.getElementById("startTime").innerHTML =
+        buildTimeOptions(OPEN_HOUR * 60, CLOSE_HOUR * 60 - SLOT_MINUTES, start);
+    updateEndOptions();
+
+    document.getElementById("purpose").value = "";
+    document.getElementById("formError").textContent = "";
+    document.getElementById("bookingForm").hidden = false;
+    document.getElementById("addBookingBtn").hidden = true;
+    document.getElementById("purpose").focus();
+}
+
+// Hide the booking form
+function closeBookingForm() {
+    document.getElementById("bookingForm").hidden = true;
+    document.getElementById("addBookingBtn").hidden = false;
+}
+
+// Send a new booking for the selected room
+async function submitBooking(e, roomId) {
+    e.preventDefault(); // stop the page from reloading
+
+    const errorEl = document.getElementById("formError");
+    errorEl.textContent = "";
+
+    const date = formatDateParam(currentDate);
+    const body = {
+        roomId: roomId,
+        userId: CURRENT_USER_ID,
+        purpose: document.getElementById("purpose").value.trim(),
+        startTime: `${date}T${document.getElementById("startTime").value}:00`,
+        endTime: `${date}T${document.getElementById("endTime").value}:00`
+    };
+
+    const res = await fetch("/api/bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+    });
+
+    if (!res.ok) {
+        // Show the server's message (e.g. overlap) if there is one
+        const data = await res.json().catch(() => null);
+        errorEl.textContent = data?.message ?? "予約に失敗しました。";
+        return;
+    }
+
+    closeBookingForm();
+    showToast("予約しました。");
+    loadBookings(roomId);
+    loadStatus();
+}
+
+let toastTimer = null;
+
+// Show a short message at the bottom of the screen for 2 seconds
+function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.classList.add("show");
+
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2000);
 }
 
 // Move the viewed date by the given number of days (-1 / +1)

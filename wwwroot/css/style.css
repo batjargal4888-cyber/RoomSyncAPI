@@ -304,6 +304,122 @@ body {
     white-space: nowrap;
 }
 
+/* ===== Booking form ===== */
+.booking-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.booking-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.booking-form input,
+.booking-form select {
+    padding: 6px 8px;
+    background: transparent;
+    color: var(--line);
+    border: 1px solid var(--line-dim);
+    font-family: var(--font);
+    font-size: 13px;
+    /* dark time picker & dropdown */
+    color-scheme: dark;
+}
+
+.booking-form input:focus,
+.booking-form select:focus {
+    outline: none;
+    border-color: var(--selected);
+}
+
+.time-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.form-error {
+    margin: 0;
+    min-height: 1em;
+    font-size: 12px;
+    color: var(--busy);
+}
+
+/* The "hidden" attribute loses to display:flex, so force it */
+.booking-form[hidden] {
+    display: none;
+}
+
+.add-booking-btn,
+.btn-primary,
+.btn-secondary {
+    padding: 8px;
+    background: transparent;
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.add-booking-btn {
+    width: 100%;
+    margin-top: 16px;
+    color: var(--line);
+    border: 1px dashed var(--line-dim);
+}
+
+.add-booking-btn:hover {
+    border-color: var(--line);
+}
+
+.form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.btn-primary {
+    color: var(--free);
+    border: 1px solid var(--free);
+}
+
+.btn-primary:hover {
+    background: rgba(74, 222, 128, 0.15);
+}
+
+.btn-secondary {
+    color: var(--line);
+    border: 1px solid var(--line-dim);
+}
+
+.btn-secondary:hover {
+    border-color: var(--line);
+}
+
+/* ===== Toast ===== */
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 32px;
+    transform: translate(-50%, 20px);
+    padding: 10px 20px;
+    background: var(--bg);
+    color: var(--free);
+    border: 1px solid var(--free);
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
 /* ===== Phone ===== */
 @media (max-width: 768px) {
     .layout {
