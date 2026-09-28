@@ -1,13 +1,23 @@
 /* =====  1. Color variables ===== */
 :root {
-    --bg: #0b1e3a;
-    --paper: rgba(16, 40, 77, 0.6);
-    --line: #e8f0ff;
-    --line-dim: rgba(232, 240, 255, 0.35);
-    --grid: rgba(232, 240, 255, 0.06);
-    --free: #4ade80;
-    --busy: #f87171;
-    --selected: #facc15;
+    /* Palette */
+    --green-900: #0f2a1d;
+    --green-700: #375534;
+    --green-500: #6b9071;
+    --green-300: #aec3b0;
+    --green-100: #e3eed4;
+
+    /* Roles */
+    --bg: var(--green-100);
+    --paper: #f4f8ec;
+    --line: var(--green-900); /* text & strong lines */
+    --line-dim: var(--green-300); /* soft borders */
+    --grid: rgba(55, 85, 52, 0.08);
+
+    --free: var(--green-500);
+    --busy: #c8553d;
+    --selected: #d99a1e;
+
     --font: "Hiragino Sans", "Yu Gothic UI", "Meiryo", "Noto Sans JP", sans-serif;
     --mono: "SF Mono", "Consolas", "Cascadia Mono", monospace;
 }
@@ -16,17 +26,13 @@
     box-sizing: border-box;
 }
 
-/* =====  2. Background (blueprint grid) ===== */
+/* =====  2. Base ===== */
 body {
     margin: 0;
     min-height: 100vh;
     font-family: var(--font);
     color: var(--line);
     background-color: var(--bg);
-    background-image: 
-        linear-gradient(var(--grid) 1px, transparent 1px),
-        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size: 24px 24px;
 }
 
 /* =====  3. Header ===== */
@@ -37,7 +43,13 @@ body {
     flex-wrap: wrap;
     gap: 12px;
     padding: 12px 20px;
-    border-bottom: 1px solid var(--line-dim);
+    background: var(--green-900);
+    color: var(--green-100);
+
+    /* Flip the variables inside the header only */
+    --line: var(--green-100);
+    --line-dim: rgba(227, 238, 212, 0.3);
+    border-bottom: none;
 }
 
 .brand {
@@ -79,6 +91,8 @@ body {
 .panel {
     background: var(--paper);
     border: 1px solid var(--line-dim);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(15, 42, 29, 0.06);
     padding: 16px;
 }
 
@@ -92,6 +106,11 @@ body {
     aspect-ratio: 830 / 1160;
     margin: 16px auto 0;
     border: 1px solid var(--line);
+    background-color: #ffffff;
+    background-image: 
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 24px 24px;
 }
 
 /* ===== Date navigation ===== */
@@ -222,13 +241,13 @@ body {
     align-items: center;
     gap: 2px;
     border: 1.5px solid var(--line);
-    background: rgba(74, 222, 128, 0.08);
+    background: rgba(107, 144, 113, 0.10);
     cursor: pointer;
     transition: background 0.15s;
 }
 
 .room:hover {
-    background: rgba(74, 222, 128, 0.2);
+    background: rgba(107, 144, 113, 0.22);
 }
 
 .room .name {
@@ -244,12 +263,13 @@ body {
 
 .room.busy {
     border-color: var(--busy);
-    background: rgba(248, 113, 113, 0.18);
+    background: rgba(200, 85, 61, 0.15);
 }
 
 .room.selected {
     border-color: var(--selected);
-    background: rgba(250, 204, 21, 0.15);
+    border-width: 2.5px;
+    background: rgba(217, 154, 30, 0.18);
 }
 
 /* ===== Room detail ===== */
@@ -326,8 +346,8 @@ body {
     border: 1px solid var(--line-dim);
     font-family: var(--font);
     font-size: 13px;
-    /* dark time picker & dropdown */
-    color-scheme: dark;
+    /* light dropdown to match the theme */
+    color-scheme: light;
 }
 
 .booking-form input:focus,
@@ -382,12 +402,14 @@ body {
 }
 
 .btn-primary {
-    color: var(--free);
-    border: 1px solid var(--free);
+    color: #ffffff;
+    background: var(--green-700);
+    border: 1px solid var(--green-700);
 }
 
 .btn-primary:hover {
-    background: rgba(74, 222, 128, 0.15);
+    background: var(--green-900);
+    border-color: var(--green-900);
 }
 
 .btn-secondary {
@@ -406,13 +428,14 @@ body {
     bottom: 32px;
     transform: translate(-50%, 20px);
     padding: 10px 20px;
-    background: var(--bg);
-    color: var(--free);
-    border: 1px solid var(--free);
+    background: var(--green-900);
+    color: var(--green-100);
+    border: none;
     font-size: 14px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s, transform 0.2s;
+    border-radius: 8px;
 }
 
 .toast.show {
@@ -444,4 +467,23 @@ body {
 /* Clock: digits only, keep them aligned */
 #clock {
     font-variant-numeric: tabular-nums;
+}
+
+/* ===== Rounded corners (consistent with cards) ===== */
+.stat-card,
+.placeholder {
+    border-radius: 8px;
+}
+
+.booking-form input,
+.booking-form select,
+.add-booking-btn,
+.btn-primary,
+.btn-secondary,
+.date-nav button {
+    border-radius: 6px;
+}
+
+.swatch {
+    border-radius: 3px;
 }
