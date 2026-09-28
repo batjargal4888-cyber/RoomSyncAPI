@@ -299,29 +299,117 @@ body {
     opacity: 0.7;
 }
 
-.booking-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
+/* ===== Timeline ===== */
+.timeline {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Vertical line behind the dots (44px time + half of 24px dot column) */
+.timeline::before {
+    content: "";
+    position: absolute;
+    top: 12px;
+    bottom: 12px;
+    left: 55px;
+    width: 2px;
+    background: var(--line-dim);
+}
+
+.tl-item {
+    display: grid;
+    grid-template-columns: 44px 24px 1fr;
+    align-items: center;
+}
+
+.tl-time {
+    font-family: var(--mono);
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.tl-dot {
+    position: relative; /* stay above the line */
+    justify-self: center;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--paper);
+    border: 2px solid var(--green-500);
+}
+
+.tl-card {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    background: #ffffff;
+    border: 1px solid var(--line-dim);
+    border-radius: 8px;
+}
+
+.tl-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.tl-meta {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+/* Booked */
+.tl-booking .tl-dot {
+    background: var(--green-700);
+    border-color: var(--green-700);
+}
+
+/* In use right now */
+.tl-now .tl-dot {
+    background: var(--busy);
+    border-color: var(--busy);
+    box-shadow: 0 0 0 4px rgba(200, 85, 61, 0.2);
+}
+
+.tl-now .tl-card {
+    border-color: var(--busy);
+}
+
+.tl-badge {
+    align-self: flex-start;
+    margin-top: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: #ffffff;
+    background: var(--busy);
+    border-radius: 999px;
+}
+
+/* Free slot */
+.tl-free {
+    cursor: pointer;
+}
+
+.tl-free .tl-card {
+    background: transparent;
+    border-style: dashed;
+}
+
+.tl-free .tl-title {
+    font-weight: 400;
+    color: var(--green-500);
+}
+
+.tl-free:hover .tl-card {
+    border-color: var(--green-500);
+    background: rgba(107, 144, 113, 0.08);
 }
 
 .booking-empty {
     font-size: 13px;
     opacity: 0.6;
-}
-
-.booking-item {
-    display: flex;
-    gap: 12px;
-    padding: 8px 0;
-    border-bottom: 1px dashed var(--line-dim);
-    font-size: 13px;
-}
-
-.booking-time {
-    font-family: var(--mono);
-    color: var(--busy);
-    white-space: nowrap;
 }
 
 /* ===== Booking form ===== */

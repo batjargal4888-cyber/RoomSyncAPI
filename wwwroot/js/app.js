@@ -60,6 +60,21 @@ function buildTimeOptions(fromMinutes, toMinutes, selectedMinutes) {
     return html;
 }
 
+// Minutes -> "２時間" / "１時間３０分" / "30分"
+function formatDuration(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}分`;
+    return m === 0 ? `${h}時間` : `${h}時間${m}分`;
+}
+
+// Escape user text before putting it into innerHTML (prevents XSS)
+function escapeHtml(text) {
+    const div = document.createElement("div");
+    div.textContent = text ?? "";
+    return div.innerHTML;
+}
+
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 // Format a Date as "2026年9月28日(月)"
@@ -139,9 +154,9 @@ function renderRoomDetail(room) {
             <span class="detail-cap">定員 ${room.capacity}名</span>
         </div>
         <h4 id="bookingTitle" class="detail-subtitle"></h4>
-        <ul id="bookingList" class="booking-list">
-            <li class="booking-empty">読み込み中...</li>
-        </ul>
+        <div id="timeline" class="timeline">
+            <p class="booking-empty">読み込み中...</p>
+        </div>
 
         <button type="button" id="addBookingBtn" class="add-booking-btn">✛ 予約を追加</button>
 
@@ -170,6 +185,12 @@ function renderRoomDetail(room) {
     document.getElementById("cancelBtn").onclick = closeBookingForm;
     document.getElementById("startTime").onchange = updateEndOptions;
     document.getElementById("bookingForm").onsubmit = e => submitBooking(e, room.id);
+
+    // Click a free slot -> open the form at that time
+    document.getElementById("timeline").onclick = e => {
+        const slot = e.target.closest(".tl-free");
+        if (slot) openBookingForm(Number(slot.dataset.start));
+    };
 }
 
 // Fetch bookings for the room on the current date
@@ -180,37 +201,93 @@ async function loadBookings(roomId) {
     // Ignore the response if another room was selected meanwhile
     if (roomId !== selectedRoomId) return;
 
-    const list = document.getElementById("bookingList");
-
     document.getElementById("bookingTitle").textContent = isToday(currentDate)
         ? "本日の予約"
         : `${currentDate.getMonth() + 1}月${currentDate.getDate()}日 (${WEEKDAYS[currentDate.getDay()]}) の予約`;
 
     if (!res.ok) {
-        list.innerHTML = `<li class="booking-empty">予約を取得できませんでした</li>`;
+        document.getElementById("timeline").innerHTML = 
+            `<p class="booking-empty">予約を取得できませんでした</p>`;
         return;
     }
 
     const bookings = await res.json();
-
-    if (bookings.length === 0) {
-        list.innerHTML = `<li class="booking-empty">予約はありません</li>`;
-        return;
-    }
-
     bookings.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    renderTimeline(bookings);
+}
 
-    list.innerHTML = bookings.map(b => `
-        <li class="booking-item">
-            <span class="booking-time">${formatTime(b.startTime)}-${formatTime(b.endTime)}</span>
-            <span class="booking-purpose">${b.purpose || "(目的なし)"}</span>
-        </li>
-    `).join("");
+// Draw bookings & the free gaps between them
+function renderTimeline(bookings) {
+    const earliest = earliestStart();
+    const now = new Date();
+    let cursor = OPEN_HOUR * 60;
+    let html = "";
+
+    bookings.forEach(b => {
+        const start = toMinutes(formatTime(b.startTime));
+        const end = toMinutes(formatTime(b.endTime));
+        html += freeSlotHtml(cursor, start, earliest);
+        html += bookingHtml(b, start, end, now);
+        cursor = Math.max(cursor, end);
+    });
+    html += freeSlotHtml(cursor, CLOSE_HOUR * 60, earliest);
+
+    document.getElementById("timeline").innerHTML =
+        html || `<p class="booking-empty">予約できる時間はありません</p>`;
+}
+
+// One booking card
+function bookingHtml(b, start, end, now) {
+    const inUse = isToday(currentDate)
+        && new Date(b.startTime) <= now && now < new Date(b.endTime);
+    
+    return `
+        <div class="tl-item tl-booking ${inUse ? "tl-now" : ""}">
+            <span class="tl-time">${toHHMM(start)}</span>
+            <span class="tl-dot"></span>
+            <div class="tl-card">
+                <span class="tl-title">${escapeHtml(b.purpose) || "(目的なし)"}</span>
+                <span class="tl-meta">${toHHMM(start)}-${toHHMM(end)}・${formatDuration(end - start)}・${escapeHtml(b.userName)}</span>
+                ${inUse ? `<span class="tl-badge">利用中</span>` : ""}
+            </div>
+        </div>
+    `;
+}
+
+// A clickable free slot (only the part that can still be booked)
+function freeSlotHtml(from, to, earliest) {
+    if (earliest === null) return "";
+    const start = Math.max(from, earliest);
+    if (to - start < SLOT_MINUTES) return "";
+
+    return `
+        <div class="tl-item tl-free" data-start="${start}">
+            <span class="tl-time">${toHHMM(start)}</span>
+            <span class="tl-dot"></span>
+            <div class="tl-card">
+                <span class="tl-title">空き</span>
+                <span class="tl-meta">${toHHMM(start)}-${toHHMM(to)}・クリックで予約</span>
+            </div>
+        </div>
+    `;
 }
 
 // True if the given date is today
 function isToday(date) {
     return formatDateParam(date) === formatDateParam(new Date());
+}
+
+// Earliest bookable minute on the viewed date (null = date is in the past)
+function earliestStart() {
+    const today = formatDateParam(new Date());
+    const viewed = formatDateParam(currentDate);
+    if (viewed < today) return null;
+    if (viewed > today) return OPEN_HOUR * 60;
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const next = Math.ceil(nowMinutes / SLOT_MINUTES) * SLOT_MINUTES;
+    return Math.max(next, OPEN_HOUR * 60);
 }
 
 // Color rooms by whether they are in use right now
