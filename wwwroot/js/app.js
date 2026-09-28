@@ -13,7 +13,7 @@ function toPercent(value, base) {
     return (value / base * 100) + "%";
 }
 
-// Format a Date as "YYYY-MM-DD" in localt time
+// Format a Date as "YYYY-MM-DD" in local time
 function formatDateParam(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -24,6 +24,30 @@ function formatDateParam(date) {
 // Extract "HH:mm" from "2026-09-28T10:00:00"
 function formatTime(iso) {
     return iso.slice(11, 16);
+}
+
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+// Format a Date as "2026年9月28日(月)"
+function formatDateLabel(date) {
+    const y = date.getFullYear();
+    const m = date.getMonth() + 1; // getMonth() is 0-based
+    const d = date.getDate();
+    const w = WEEKDAYS[date.getDay()];
+    return `${y}年${m}月${d}日 (${w})`;
+}
+
+// Show the date currently being viewed
+function renderDate() {
+    document.getElementById("dateLabel").textContent = formatDateLabel(currentDate);
+}
+
+// Show the current time as "HH:mm"
+function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, "0");
+    const m = String(now.getMinutes()).padStart(2, "0");
+    document.getElementById("clock").textContent = `${h}:${m}`;
 }
 
 async function loadRooms() {
@@ -117,5 +141,9 @@ async function loadBookings(roomId) {
         </li>
     `).join("");
 }
+
+renderDate();
+updateClock();
+setInterval(updateClock, 30000); // refresh every 30 seconds
 
 loadRooms();
