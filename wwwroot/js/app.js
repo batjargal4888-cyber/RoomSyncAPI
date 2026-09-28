@@ -8,6 +8,9 @@ let selectedRoomId = null;
 // Date currently shown (defaults to today)
 let currentDate = new Date();
 
+// Room divs by id (to update their colors)
+const roomElements = {};
+
 // Convert a canvas value to a percentage of the floor
 function toPercent(value, base) {
     return (value / base * 100) + "%";
@@ -53,7 +56,7 @@ function updateClock() {
 async function loadRooms() {
     const res = await fetch("/api/rooms");
     if (!res.ok) {
-        console.error("Failed to load rooms:", res.status);
+        console.error("会議室の取得に失敗しました：", res.status);
         return;
     }
 
@@ -79,7 +82,8 @@ async function loadRooms() {
 
         // Select room on click
         div.onclick = () => selectRoom(room, div);
-        
+
+        roomElements[room.id] = div;
         floor.appendChild(div);
     });
 }
@@ -142,8 +146,48 @@ async function loadBookings(roomId) {
     `).join("");
 }
 
+// True if the given date is today
+function isToday(date) {
+    return formatDateParam(date) === formatDateParam(new Date());
+}
+
+// Color rooms by whether they are in use right now
+async function loadStatus() {
+    const date = formatDateParam(currentDate);
+    const res = await fetch(`/api/bookings?date=${date}`);
+    if (!res.ok) {
+        console.error("予約の取得に失敗しました", res.status);
+        return;
+    }
+
+    const bookings = await res.json();
+    const now = new Date();
+
+    // Room ids with a booking that covers the current time
+    const busyIds = new Set();
+    if (isToday(currentDate)) {
+        bookings.forEach(b => {
+            if (new Date(b.startTime) <= now && now < new Date(b.endTime)) {
+                busyIds.add(b.roomId);
+            }
+        });
+    }
+
+    Object.entries(roomElements).forEach(([id, div]) => {
+        div.classList.toggle("busy", busyIds.has(Number(id)));
+    });
+
+    const total = Object.keys(roomElements).length;
+    document.getElementById("statFree").textContent = total - busyIds.size;
+    document.getElementById("statBusy").textContent = busyIds.size;
+}
+
 renderDate();
 updateClock();
-setInterval(updateClock, 30000); // refresh every 30 seconds
+loadRooms().then(loadStatus);
 
-loadRooms();
+// Refresh clock & room status every 30 seconds
+setInterval(() => {
+    updateClock();
+    loadStatus();
+}, 30000);

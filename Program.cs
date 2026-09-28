@@ -119,15 +119,18 @@ app.MapGet("/api/users", async (AppDbContext db) =>
 // ===== booking API =====
 
 // that 1 room reservations that day
-app.MapGet("/api/bookings", async (int roomId, DateTime date, AppDbContext db) =>
+app.MapGet("/api/bookings", async (int? roomId, DateTime date, AppDbContext db) =>
 {
     var dayStart = date.Date;
     var dayEnd = dayStart.AddDays(1);
 
+    var query = db.Bookings
+        .Where(b => b.StartTime < dayEnd && b.EndTime > dayStart);
+
+    if (roomId is not null)
+        query = query.Where(b => b.RoomId == roomId);
+
     var bookings = await db.Bookings
-        .Where(b => b.RoomId == roomId
-                && b.StartTime < dayEnd
-                && b.EndTime > dayStart)
         .OrderBy(b => b.StartTime)
         .Select(b => new
         {

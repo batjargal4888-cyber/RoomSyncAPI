@@ -1,6 +1,13 @@
 @RoomSyncApi_HostAddress = http://localhost:5039
 
-GET {{RoomSyncApi_HostAddress}}/weatherforecast/
-Accept: application/json
+### Create a booking (room D, today 10:00 - 12:00)
+POST {{RoomSyncApi_HostAddress}}/api/bookings
+Content-Type: application/json
 
-###
+{
+    "roomId": 4,
+    "userId": 1,
+    "purpose": "定例ミーティング",
+    "startTime": "2026-09-28T10:00:00",
+    "endTime": "2026-09-28T12:00:00"
+}
