@@ -107,7 +107,7 @@ function renderRoomDetail(room) {
             <h3 class="detail-name">会議室 ${room.name}</h3>
             <span class="detail-cap">定員 ${room.capacity}名</span>
         </div>
-        <h4 class="detail-subtitle">本日の予約</h4>
+        <h4 id="bookingTitle" class="detail-subtitle"></h4>
         <ul id="bookingList" class="booking-list">
             <li class="booking-empty">読み込み中...</li>
         </ul>
@@ -123,6 +123,10 @@ async function loadBookings(roomId) {
     if (roomId !== selectedRoomId) return;
 
     const list = document.getElementById("bookingList");
+
+    document.getElementById("bookingTitle").textContent = isToday(currentDate)
+        ? "本日の予約"
+        : `${currentDate.getMonth() + 1}月${currentDate.getDate()}日 (${WEEKDAYS[currentDate.getDay()]}) の予約`;
 
     if (!res.ok) {
         list.innerHTML = `<li class="booking-empty">予約を取得できませんでした</li>`;
@@ -153,6 +157,14 @@ function isToday(date) {
 
 // Color rooms by whether they are in use right now
 async function loadStatus() {
+    // "In use" only makes sense for Today
+    if (!isToday(currentDate)) {
+        Object.values(roomElements).forEach(div => div.classList.remove("busy"));
+        document.getElementById("statFree").textContent = "-";
+        document.getElementById("statBusy").textContent = "-";
+        return;
+    }
+
     const date = formatDateParam(currentDate);
     const res = await fetch(`/api/bookings?date=${date}`);
     if (!res.ok) {
@@ -165,13 +177,11 @@ async function loadStatus() {
 
     // Room ids with a booking that covers the current time
     const busyIds = new Set();
-    if (isToday(currentDate)) {
-        bookings.forEach(b => {
-            if (new Date(b.startTime) <= now && now < new Date(b.endTime)) {
-                busyIds.add(b.roomId);
-            }
-        });
-    }
+    bookings.forEach(b => {
+        if (new Date(b.startTime) <= now && now < new Date(b.endTime)) {
+            busyIds.add(b.roomId);
+        }
+    });
 
     Object.entries(roomElements).forEach(([id, div]) => {
         div.classList.toggle("busy", busyIds.has(Number(id)));
@@ -181,6 +191,21 @@ async function loadStatus() {
     document.getElementById("statFree").textContent = total - busyIds.size;
     document.getElementById("statBusy").textContent = busyIds.size;
 }
+
+// Move the viewed date by the given number of days (-1 / +1)
+function changeDate(days) {
+    currentDate.setDate(currentDate.getDate() + days);
+    renderDate();
+    loadStatus();
+
+    // Reload the side panel if a room is selected
+    if (selectedRoomId !== null) {
+        loadBookings(selectedRoomId);
+    }
+}
+
+document.getElementById("prevDay").onclick = () => changeDate(-1);
+document.getElementById("nextDay").onclick = () => changeDate(1);
 
 renderDate();
 updateClock();

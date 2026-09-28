@@ -130,7 +130,7 @@ app.MapGet("/api/bookings", async (int? roomId, DateTime date, AppDbContext db) 
     if (roomId is not null)
         query = query.Where(b => b.RoomId == roomId);
 
-    var bookings = await db.Bookings
+    var bookings = await query
         .OrderBy(b => b.StartTime)
         .Select(b => new
         {
