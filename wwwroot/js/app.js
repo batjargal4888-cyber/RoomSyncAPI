@@ -8,6 +8,9 @@ let selectedRoomId = null;
 // Date currently shown (defaults to today)
 let currentDate = new Date();
 
+// First day of the month shown in the calendar
+let calendarMonth = null;
+
 // Logged-in user (fixed for now, until login is added)
 const CURRENT_USER_ID = 1;
 
@@ -15,6 +18,10 @@ const CURRENT_USER_ID = 1;
 const OPEN_HOUR = 9;
 const CLOSE_HOUR = 18;
 const SLOT_MINUTES = 30;
+
+// Lunch break: no booking allowed in this range
+const LUNCH_START = 12 * 60;
+const LUNCH_END = 13 * 60;
 
 // Room divs by id (to update their colors)
 const roomElements = {};
@@ -60,7 +67,23 @@ function buildTimeOptions(fromMinutes, toMinutes, selectedMinutes) {
     return html;
 }
 
-// Minutes -> "２時間" / "１時間３０分" / "30分"
+// Start-time options, skipping the lunch break
+function buildStartOptions(from, selected) {
+    let html = "";
+    for (let t = from; t < CLOSE_HOUR * 60; t += SLOT_MINUTES) {
+        if (t >= LUNCH_START && t < LUNCH_END) continue;
+        const sel = t === selected ? "selected" : "";
+        html += `<option value="${toHHMM(t)}" ${sel}>${toHHMM(t)}</option>`;
+    }
+    return html;
+}
+
+// Morning bookings must end by lunch; afternoon ones by closing time
+function latestEnd(start) {
+    return start < LUNCH_START ? LUNCH_START : CLOSE_HOUR * 60;
+}
+
+// Minutes -> "2時間" / "1時間30分" / "30分"
 function formatDuration(minutes) {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
@@ -77,26 +100,13 @@ function escapeHtml(text) {
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
-// Format a Date as "2026年9月28日(月)"
-function formatDateLabel(date) {
-    const y = date.getFullYear();
-    const m = date.getMonth() + 1; // getMonth() is 0-based
-    const d = date.getDate();
-    const w = WEEKDAYS[date.getDay()];
-    return `${y}年${m}月${d}日 (${w})`;
-}
-
-// Show the date currently being viewed
-function renderDate() {
-    document.getElementById("dateLabel").textContent = formatDateLabel(currentDate);
-}
-
-// Show the current time as "HH:mm"
+// Show today's date and time, e.g. "9月29日 (火) 09:23"
 function updateClock() {
     const now = new Date();
     const h = String(now.getHours()).padStart(2, "0");
     const m = String(now.getMinutes()).padStart(2, "0");
-    document.getElementById("clock").textContent = `${h}:${m}`;
+    document.getElementById("clock").textContent =
+        `${now.getMonth() + 1}月${now.getDate()}日 (${WEEKDAYS[now.getDay()]}) ${h}:${m}`;
 }
 
 async function loadRooms() {
@@ -158,8 +168,6 @@ function renderRoomDetail(room) {
             <p class="booking-empty">読み込み中...</p>
         </div>
 
-        <button type="button" id="addBookingBtn" class="add-booking-btn">✛ 予約を追加</button>
-
         <form id="bookingForm" class="booking-form" hidden>
             <h4 class="detail-subtitle">新規予約</h4>
             <div class="time-row">
@@ -181,7 +189,6 @@ function renderRoomDetail(room) {
         </form>
     `;
 
-    document.getElementById("addBookingBtn").onclick = () => openBookingForm();
     document.getElementById("cancelBtn").onclick = closeBookingForm;
     document.getElementById("startTime").onchange = updateEndOptions;
     document.getElementById("bookingForm").onsubmit = e => submitBooking(e, room.id);
@@ -206,41 +213,70 @@ async function loadBookings(roomId) {
         : `${currentDate.getMonth() + 1}月${currentDate.getDate()}日 (${WEEKDAYS[currentDate.getDay()]}) の予約`;
 
     if (!res.ok) {
-        document.getElementById("timeline").innerHTML = 
+        document.getElementById("timeline").innerHTML =
             `<p class="booking-empty">予約を取得できませんでした</p>`;
         return;
     }
 
     const bookings = await res.json();
-    bookings.sort((a, b) => a.startTime.localeCompare(b.startTime));
     renderTimeline(bookings);
 }
 
-// Draw bookings & the free gaps between them
+// Draw bookings, the lunch break, and the free gaps between them
 function renderTimeline(bookings) {
+    const timeline = document.getElementById("timeline");
+
+    if (isWeekend(currentDate)) {
+        timeline.innerHTML = `<p class="booking-empty">土日は予約できません</p>`;
+        return;
+    }
+
     const earliest = earliestStart();
     const now = new Date();
+
+    // Treat lunch as a fixed block so free slots are split around it
+    const items = bookings.map(b => ({
+        start: toMinutes(formatTime(b.startTime)),
+        end: toMinutes(formatTime(b.endTime)),
+        booking: b
+    }));
+    items.push({ start: LUNCH_START, end: LUNCH_END, booking: null });
+    items.sort((a, b) => a.start - b.start);
+
     let cursor = OPEN_HOUR * 60;
     let html = "";
 
-    bookings.forEach(b => {
-        const start = toMinutes(formatTime(b.startTime));
-        const end = toMinutes(formatTime(b.endTime));
-        html += freeSlotHtml(cursor, start, earliest);
-        html += bookingHtml(b, start, end, now);
-        cursor = Math.max(cursor, end);
+    items.forEach(item => {
+        html += freeSlotHtml(cursor, item.start, earliest);
+        html += item.booking
+            ? bookingHtml(item.booking, item.start, item.end, now)
+            : lunchHtml();
+        cursor = Math.max(cursor, item.end);
     });
     html += freeSlotHtml(cursor, CLOSE_HOUR * 60, earliest);
 
-    document.getElementById("timeline").innerHTML =
-        html || `<p class="booking-empty">予約できる時間はありません</p>`;
+    timeline.innerHTML = html;
+}
+
+// Lunch break block (not clickable)
+function lunchHtml() {
+    return `
+        <div class="tl-item tl-lunch">
+            <span class="tl-time">${toHHMM(LUNCH_START)}</span>
+            <span class="tl-dot"></span>
+            <div class="tl-card">
+                <span class="tl-title">昼休み</span>
+                <span class="tl-meta">${toHHMM(LUNCH_START)}-${toHHMM(LUNCH_END)}・予約不可</span>
+            </div>
+        </div>
+    `;
 }
 
 // One booking card
 function bookingHtml(b, start, end, now) {
     const inUse = isToday(currentDate)
         && new Date(b.startTime) <= now && now < new Date(b.endTime);
-    
+
     return `
         <div class="tl-item tl-booking ${inUse ? "tl-now" : ""}">
             <span class="tl-time">${toHHMM(start)}</span>
@@ -277,6 +313,60 @@ function isToday(date) {
     return formatDateParam(date) === formatDateParam(new Date());
 }
 
+// Saturday or Sunday
+function isWeekend(date) {
+    const day = date.getDay();
+    return day === 0 || day === 6;
+}
+
+// True if both dates are the same calendar day
+function isSameDay(a, b) {
+    return formatDateParam(a) === formatDateParam(b);
+}
+
+// Switch the viewed date and refresh everything that depends on it
+function setDate(date) {
+    currentDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    calendarMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    renderCalendar();
+    loadStatus();
+    if (selectedRoomId !== null) loadBookings(selectedRoomId);
+}
+
+// Draw the month grid for calendarMonth
+function renderCalendar() {
+    const y = calendarMonth.getFullYear();
+    const m = calendarMonth.getMonth();
+    const firstWeekday = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const today = new Date();
+
+    // Empty cells before the 1st so it lands on the right weekday
+    let cells = "<span></span>".repeat(firstWeekday);
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const date = new Date(y, m, d);
+        const classes = ["cal-day"];
+        if (isSameDay(date, today)) classes.push("today");
+        if (isSameDay(date, currentDate)) classes.push("selected");
+        const disabled = isWeekend(date) ? "disabled" : "";
+        cells += `<button type="button" class="${classes.join(" ")}" data-day="${d}" ${disabled}>${d}</button>`;
+    }
+
+    document.getElementById("calendar").innerHTML = `
+        <div class="cal-head">
+            <button type="button" class="cal-nav" data-move="-1" aria-label="前の月">‹</button>
+            <span>${y}年${m + 1}月</span>
+            <button type="button" class="cal-nav" data-move="1" aria-label="次の月">›</button>
+        </div>
+        <div class="cal-grid">
+            ${WEEKDAYS.map(w => `<span class="cal-week">${w}</span>`).join("")}
+            ${cells}
+        </div>
+        <button type="button" class="cal-today" data-today ${isWeekend(today) ? "disabled" : ""}>今日</button>
+    `;
+}
+
 // Earliest bookable minute on the viewed date (null = date is in the past)
 function earliestStart() {
     const today = formatDateParam(new Date());
@@ -292,7 +382,7 @@ function earliestStart() {
 
 // Color rooms by whether they are in use right now
 async function loadStatus() {
-    // "In use" only makes sense for Today
+    // "In use" only makes sense for today
     if (!isToday(currentDate)) {
         Object.values(roomElements).forEach(div => div.classList.remove("busy"));
         document.getElementById("statFree").textContent = "-";
@@ -327,44 +417,28 @@ async function loadStatus() {
     document.getElementById("statBusy").textContent = busyIds.size;
 }
 
-// Next 30-minutes slot from now (opening time on other days)
-function defaultStartTime() {
-    const open = OPEN_HOUR * 60;
-    const lastStart = CLOSE_HOUR * 60 - SLOT_MINUTES;
-    if (!isToday(currentDate)) return open;
-
-    const now = new Date();
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const next = Math.ceil(nowMinutes / SLOT_MINUTES) * SLOT_MINUTES;
-    return Math.min(Math.max(next, open), lastStart);
-}
-
 // Keep end-time options after the start time (default: +1 hour)
 function updateEndOptions() {
     const start = toMinutes(document.getElementById("startTime").value);
-    const close = CLOSE_HOUR * 60;
-    const defaultEnd = Math.min(start + 60, close);
+    const last = latestEnd(start);
+    const defaultEnd = Math.min(start + 60, last);
     document.getElementById("endTime").innerHTML =
-        buildTimeOptions(start + SLOT_MINUTES, close, defaultEnd);
+        buildTimeOptions(start + SLOT_MINUTES, last, defaultEnd);
 }
 
-// Show the booking form (start time can be given, e.g. from the timeline)
-function openBookingForm(start = defaultStartTime()) {
-    document.getElementById("startTime").innerHTML =
-        buildTimeOptions(OPEN_HOUR * 60, CLOSE_HOUR * 60 - SLOT_MINUTES, start);
+// Show the booking form, starting at the clicked free slot
+function openBookingForm(start) {
+    document.getElementById("startTime").innerHTML = buildStartOptions(earliestStart(), start);
     updateEndOptions();
-
     document.getElementById("purpose").value = "";
     document.getElementById("formError").textContent = "";
     document.getElementById("bookingForm").hidden = false;
-    document.getElementById("addBookingBtn").hidden = true;
     document.getElementById("purpose").focus();
 }
 
 // Hide the booking form
 function closeBookingForm() {
     document.getElementById("bookingForm").hidden = true;
-    document.getElementById("addBookingBtn").hidden = false;
 }
 
 // Send a new booking for the selected room
@@ -414,23 +488,42 @@ function showToast(message) {
     toastTimer = setTimeout(() => toast.classList.remove("show"), 2000);
 }
 
-// Move the viewed date by the given number of days (-1 / +1)
-function changeDate(days) {
-    currentDate.setDate(currentDate.getDate() + days);
-    renderDate();
-    loadStatus();
-
-    // Reload the side panel if a room is selected
-    if (selectedRoomId !== null) {
-        loadBookings(selectedRoomId);
+// Show the signed-in user's name in the header
+async function loadCurrentUser() {
+    const res = await fetch("/api/users");
+    if (!res.ok) {
+        console.error("ユーザーの取得に失敗しました", res.status);
+        return;
     }
+
+    const users = await res.json();
+    const me = users.find(u => u.id === CURRENT_USER_ID);
+    document.getElementById("userName").textContent = me?.name ?? "";
 }
 
-document.getElementById("prevDay").onclick = () => changeDate(-1);
-document.getElementById("nextDay").onclick = () => changeDate(1);
+// ===== Event handlers =====
 
-renderDate();
+// One handler for every button inside the calendar
+document.getElementById("calendar").onclick = e => {
+    const btn = e.target.closest("button");
+    if (!btn || btn.disabled) return;
+
+    if (btn.dataset.move) {
+        calendarMonth.setMonth(calendarMonth.getMonth() + Number(btn.dataset.move));
+        renderCalendar();
+    } else if (btn.dataset.day) {
+        setDate(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), Number(btn.dataset.day)));
+    } else if ("today" in btn.dataset) {
+        setDate(new Date());
+    }
+};
+
+// ===== Initial render =====
+
+calendarMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+renderCalendar();
 updateClock();
+loadCurrentUser();
 loadRooms().then(loadStatus);
 
 // Refresh clock & room status every 30 seconds

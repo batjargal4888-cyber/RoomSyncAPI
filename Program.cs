@@ -155,6 +155,24 @@ app.MapPost("/api/bookings", async (CreateBookingRequest req, AppDbContext db) =
     if (req.EndTime <= req.StartTime)
         return Results.BadRequest(new { message = "終了時刻は開始時刻より後にしてください。" });
 
+    // ===== Business rules (same as the frontend, but enforced here) =====
+
+    // Weekdays only
+    if (req.StartTime.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        return Results.BadRequest(new { message = "土日は予約できません。" });
+
+    // Must start & end on the same day, within business hours (9:00 - 18:00)
+    if (req.StartTime.Date != req.EndTime.Date
+        || req.StartTime.TimeOfDay < TimeSpan.FromHours(9)
+        || req.EndTime.TimeOfDay > TimeSpan.FromHours(18))
+        return Results.BadRequest(new { message = "予約は9:00～18:00の範囲で指定してください。" });
+
+    // No overlap with the lunch break (12:00-13:00)
+    var lunchStart = req.StartTime.Date.AddHours(12);
+    var lunchEnd = req.StartTime.Date.AddHours(13);
+    if (req.StartTime < lunchEnd && req.EndTime > lunchStart)
+        return Results.BadRequest(new { message = "12:00～13:00は昼休みのため予約できません。" });
+
     if (!await db.Rooms.AnyAsync(r => r.Id == req.RoomId))
         return Results.BadRequest(new { message = "会議室が存在しません。" });
 

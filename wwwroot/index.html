@@ -3,34 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>会議室予約くん</title>
+    <title>会議室予約</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <header class="app-header">
         <div class="brand">
-            <span class="brand-name">会議室予約くん</span>
+            <span class="brand-name">会議室予約</span>
             <span class="brand-sub">フロアマップ</span>
         </div>
 
-        <div class="header-right">
-            <div class="date-nav">
-                <button type="button" id="prevDay" aria-label="前の日">‹</button>
-                <span id="dateLabel"></span>
-                <button type="button" id="nextDay" aria-label="次の日">›</button>
-            </div>
-            <span id="nowLabel" class="now-label"><span id="clock"></span> 現在</span>
-            <div class="user">
-                <span class="avatar">B</span>
-                <span>Batja</span>
-            </div>
-        </div>
+        <span id="nowLabel" class="now-label"><span id="clock"></span> 現在</span>
+        
+        <span id="userName" class="user"></span>
     </header>
 
     <main class="layout">
         <section class="map-card">
             <div class="map-header">
-                <h2>3F フロア</h2>
+                <h2>会議室フロアマップ</h2>
                 <div class="legend">
                     <span class="legend-item"><span class="swatch free"></span>空き</span>
                     <span class="legend-item"><span class="swatch busy"></span>使用中</span>
@@ -57,9 +48,13 @@
             </div>
 
             <div id="roomDetail" class="room-detail">
-                <p class="placeholder">プランから会議室を選択してください</p>
+                <p class="placeholder">マップから会議室を選択してください</p>
             </div>
         </section>
+
+        <aside class="calendar-card">
+                <div id="calendar" class="calendar"></div>
+        </aside>
     </main>
     <div id="toast" class="toast"></div>
     <script src="js/app.js"></script>
