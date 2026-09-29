@@ -1,3 +1,8 @@
+using System.Security.Claims;
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RoomSyncApi.Models;
 using RoomSyncApi;
@@ -12,6 +17,11 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite("Data Source=roomsync.db"));
 
+// Cookie-based login
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie();
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -21,11 +31,11 @@ using (var scope = app.Services.CreateScope())
     if (!db.Rooms.Any())
     {
         db.Rooms.AddRange(
-            new Room { Name = "A", Capacity = 2, PositionX = 585, PositionY = 565, Width = 245, Height = 280 },
-            new Room { Name = "B", Capacity = 2, PositionX = 585, PositionY = 290, Width = 245, Height = 275 },
-            new Room { Name = "C", Capacity = 4, PositionX = 380, PositionY = 0,   Width = 450, Height = 290 },
+            new Room { Name = "A", Capacity = 2, PositionX = 585, PositionY = 570, Width = 245, Height = 280 },
+            new Room { Name = "B", Capacity = 2, PositionX = 585, PositionY = 290, Width = 245, Height = 280 },
+            new Room { Name = "C", Capacity = 4, PositionX = 375, PositionY = 0,   Width = 455, Height = 290 },
             new Room { Name = "D", Capacity = 8, PositionX = 0,   PositionY = 0,   Width = 375, Height = 670 },
-            new Room { Name = "E", Capacity = 4, PositionX = 0,   PositionY = 670, Width = 370, Height = 275 }
+            new Room { Name = "E", Capacity = 4, PositionX = 0,   PositionY = 670, Width = 375, Height = 275 }
         );
         db.SaveChanges();
     }
@@ -39,6 +49,24 @@ using (var scope = app.Services.CreateScope())
         );
         db.SaveChanges();
     }
+
+    // Give users without a password a random initial password.
+    // It is printed once to the console so the admin can hand it over
+    var hasher = new PasswordHasher<User>();
+    const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
+    var usersWithoutPassword = db.Users
+        .Where(u => u.PasswordHash == "")
+        .ToList();
+
+    foreach (var u in usersWithoutPassword)
+    {
+        var initialPassword = RandomNumberGenerator.GetString(chars, 8);
+        u.PasswordHash = hasher.HashPassword(u, initialPassword);
+        u.MustChangePassword = true;
+        Console.WriteLine($"初期パスワード {u.Email} : {initialPassword}");
+    }
+    db.SaveChanges();
 }
 
 // Configure the HTTP request pipeline.
@@ -52,6 +80,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.UseAuthentication();
 
 // ===== room CRUD API =====
 
@@ -106,6 +135,11 @@ app.MapDelete("/api/rooms/{id}", async (int id, AppDbContext db) =>
     return Results.NoContent();
 })
 .WithName("DeleteRoom");
+
+// ===== auth API =====
+
+// Check email + password, then give the browser a login cookie
+
 
 // ===== user API =====
 
