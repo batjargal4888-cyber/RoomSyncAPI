@@ -11,9 +11,6 @@ let currentDate = new Date();
 // First day of the month shown in the calendar
 let calendarMonth = null;
 
-// Logged-in user (fixed for now, until login is added)
-const CURRENT_USER_ID = 1;
-
 // Bookable hours, in 30-minute slots
 const OPEN_HOUR = 9;
 const CLOSE_HOUR = 18;
@@ -451,7 +448,6 @@ async function submitBooking(e, roomId) {
     const date = formatDateParam(currentDate);
     const body = {
         roomId: roomId,
-        userId: CURRENT_USER_ID,
         purpose: document.getElementById("purpose").value.trim(),
         startTime: `${date}T${document.getElementById("startTime").value}:00`,
         endTime: `${date}T${document.getElementById("endTime").value}:00`
@@ -488,17 +484,23 @@ function showToast(message) {
     toastTimer = setTimeout(() => toast.classList.remove("show"), 2000);
 }
 
-// Show the signed-in user's name in the header
+// Check who is logged in & show their name.
+// Not logged in -> login page / initial password -> password change page
 async function loadCurrentUser() {
-    const res = await fetch("/api/users");
+    const res = await fetch("/api/auth/me");
     if (!res.ok) {
-        console.error("ユーザーの取得に失敗しました", res.status);
-        return;
+        location.href = "/login.html";
+        return false;
     }
 
-    const users = await res.json();
-    const me = users.find(u => u.id === CURRENT_USER_ID);
-    document.getElementById("userName").textContent = me?.name ?? "";
+    const me = await res.json();
+    if (me.mustChangePassword) {
+        location.href = "/change-password.html";
+        return false;
+    }
+
+    document.getElementById("userName").textContent = me.name;
+    return true;
 }
 
 // ===== Event handlers =====
@@ -518,13 +520,22 @@ document.getElementById("calendar").onclick = e => {
     }
 };
 
+// Log out & go back to the login page
+document.getElementById("logoutBtn").onclick = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    location.href = "/login.html";
+};
+
 // ===== Initial render =====
 
 calendarMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 renderCalendar();
 updateClock();
-loadCurrentUser();
-loadRooms().then(loadStatus);
+
+// Load the floor only after confirming the user is logged in
+loadCurrentUser().then(ok => {
+    if(ok) loadRooms().then(loadStatus);
+});
 
 // Refresh clock & room status every 30 seconds
 setInterval(() => {

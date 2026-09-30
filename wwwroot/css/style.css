@@ -621,3 +621,71 @@ body {
 .swatch {
     border-radius: 3px;
 }
+
+/* ===== Login / password change pages ===== */
+.auth-page {
+    display: grid;
+    place-items: center;
+    padding: 20px;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 360px;
+    padding: 32px 28px;
+    background: var(--paper);
+    border: 1px solid var(--line-dim);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(15, 42, 29, 0.06);
+}
+
+.auth-title {
+    margin: 0 0 24px;
+    font-size: 20px;
+    text-align: center;
+    letter-spacing: 0.05em;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.auth-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.auth-form input {
+    padding: 10px;
+    background: #ffffff;
+    color: var(--line);
+    border: 1px solid var(--line-dim);
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 14px;
+}
+
+.auth-form input:focus {
+    outline: none;
+    border-color: var(--selected);
+}
+
+.auth-form .btn-primary {
+    padding: 10px;
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.auth-note {
+    margin: -12px 0 20px;
+    font-size: 12px;
+    text-align: center;
+    opacity: 0.7;
+}
+

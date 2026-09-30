@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ログイン | 会議室予約</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-page">
+    <main>
+        <h1 class="auth-title">会議室予約</h1>
+
+        <form id="loginForm" class="auth-form">
+            <label>メールアドレス
+                <input type="email" id="email" required autocomplete="username">
+            </label>
+            <label>パスワード
+                <input type="password" id="password" required autocomplete="current-password">
+            </label>
+            <p id="loginError" class="form-error"></p>
+            <button type="submit" class="btn-primary">ログイン</button>
+        </form>
+    </main>
+
+    <script src="js/login.js"></script>
+</body>
+</html>

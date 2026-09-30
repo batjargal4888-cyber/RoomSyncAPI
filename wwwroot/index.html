@@ -15,7 +15,10 @@
 
         <span id="nowLabel" class="now-label"><span id="clock"></span> 現在</span>
         
-        <span id="userName" class="user"></span>
+        <div class="user">
+            <span id="userName"></span>
+            <button type="button" id="logoutBtn" class="logout-btn">ログアウト</button>
+        </div>
     </header>
 
     <main class="layout">
@@ -53,7 +56,7 @@
         </section>
 
         <aside class="calendar-card">
-                <div id="calendar" class="calendar"></div>
+            <div id="calendar" class="calendar"></div>
         </aside>
     </main>
     <div id="toast" class="toast"></div>
