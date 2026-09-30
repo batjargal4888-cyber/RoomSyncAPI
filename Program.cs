@@ -139,7 +139,80 @@ app.MapDelete("/api/rooms/{id}", async (int id, AppDbContext db) =>
 // ===== auth API =====
 
 // Check email + password, then give the browser a login cookie
+app.MapPost("/api/auth/login", async (LoginRequest req, AppDbContext db, HttpContext http) =>
+{
+    var user = await db.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
+    var hasher = new PasswordHasher<User>();
 
+    if (user is null || hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password) == PasswordVerificationResult.Failed)
+    {
+        return Results.BadRequest(new { message = "メールアドレスまたはパスワードが正しくありません。" });
+    }
+
+    // Information stored inside the cookie
+    var claims = new List<Claim>
+    {
+        new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new(ClaimTypes.Name, user.Name)
+    };
+    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    await http.SignInAsync(new ClaimsPrincipal(identity));
+
+    return Results.Ok(new { user.Id, user.Name, user.MustChangePassword });
+})
+.WithName("Login");
+
+// Remove the login cookie
+app.MapPost("/api/auth/logout", async (HttpContext http) =>
+{
+    await http.SignOutAsync();
+    return Results.Ok();
+})
+.WithName("Logout");
+
+// Who is logged in (401 if nobody)
+app.MapGet("/api/auth/me", async (ClaimsPrincipal principal, AppDbContext db) =>
+{
+    if (principal.Identity?.IsAuthenticated != true)
+        return Results.Unauthorized();
+
+    var userId = int.Parse(principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    var user = await db.Users.FindAsync(userId);
+    if (user is null)
+        return Results.Unauthorized();
+
+    return Results.Ok(new { user.Id, user.Name, user.MustChangePassword });
+})
+.WithName("Me");
+
+// Replace the current password with a new one
+app.MapPost("/api/auth/change-password", async (ChangePasswordRequest req, ClaimsPrincipal principal, AppDbContext db) =>
+{
+    if (principal.Identity?.IsAuthenticated != true)
+        return Results.Unauthorized();
+
+    var userId = int.Parse(principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    var user = await db.Users.FindAsync(userId);
+    if (user is null)
+        return Results.Unauthorized();
+
+    var hasher = new PasswordHasher<User>();
+    if (hasher.VerifyHashedPassword(user, user.PasswordHash, req.CurrentPassword) == PasswordVerificationResult.Failed)
+        return Results.BadRequest(new { message = "現在のパスワードが正しくありません。" });
+
+    if (req.NewPassword.Length < 8)
+        return Results.BadRequest(new { message = "新しいパスワードは８文字以上にしてください。" });
+
+    if (req.NewPassword == req.CurrentPassword)
+        return Results.BadRequest(new { message = "現在と異なるパスワードを指定してください。" });
+
+    user.PasswordHash = hasher.HashPassword(user, req.NewPassword);
+    user.MustChangePassword = false;
+    await db.SaveChangesAsync();
+
+    return Results.Ok();
+})
+.WithName("ChangePassword");
 
 // ===== user API =====
 
@@ -184,8 +257,14 @@ app.MapGet("/api/bookings", async (int? roomId, DateTime date, AppDbContext db) 
 .WithName("GetBookings");
 
 // new reservation check overlap
-app.MapPost("/api/bookings", async (CreateBookingRequest req, AppDbContext db) =>
+app.MapPost("/api/bookings", async (CreateBookingRequest req, ClaimsPrincipal principal, AppDbContext db) =>
 {
+    // Only logged-in users can book & the booker is taken from the cookie
+    if (principal.Identity?.IsAuthenticated != true)
+        return Results.Unauthorized();
+
+    var userId = int.Parse(principal.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
     if (req.EndTime <= req.StartTime)
         return Results.BadRequest(new { message = "終了時刻は開始時刻より後にしてください。" });
 
@@ -210,9 +289,6 @@ app.MapPost("/api/bookings", async (CreateBookingRequest req, AppDbContext db) =
     if (!await db.Rooms.AnyAsync(r => r.Id == req.RoomId))
         return Results.BadRequest(new { message = "会議室が存在しません。" });
 
-    if (!await db.Users.AnyAsync(u => u.Id == req.UserId))
-        return Results.BadRequest(new { message = "ユーザーが存在しません。" });
-
     bool overlaps = await db.Bookings.AnyAsync(b =>
         b.RoomId == req.RoomId &&
         b.StartTime < req.EndTime &&
@@ -224,7 +300,7 @@ app.MapPost("/api/bookings", async (CreateBookingRequest req, AppDbContext db) =
     var booking = new Booking
     {
         RoomId = req.RoomId,
-        UserId = req.UserId,
+        UserId = userId,
         Purpose = req.Purpose,
         StartTime = req.StartTime,
         EndTime = req.EndTime
@@ -260,4 +336,6 @@ app.MapDelete("/api/bookings/{id}", async (int id, AppDbContext db) =>
 
 app.Run();
 
-record CreateBookingRequest(int RoomId, int UserId, string Purpose, DateTime StartTime, DateTime EndTime);
+record CreateBookingRequest(int RoomId, string Purpose, DateTime StartTime, DateTime EndTime);
+record LoginRequest(string Email, string Password);
+record ChangePasswordRequest(string CurrentPassword, string NewPassword);
