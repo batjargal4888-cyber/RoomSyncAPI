@@ -9,9 +9,7 @@ using RoomSyncApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -72,7 +70,6 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
@@ -82,59 +79,20 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthentication();
 
-// ===== room CRUD API =====
+// ===== Room API =====
 
-// buh uruunii list awah
+// Get all rooms
 app.MapGet("/api/rooms", async (AppDbContext db) =>
     await db.Rooms.ToListAsync())
     .WithName("GetRooms");
 
-// todorhoi 1 uruunii info get
+// Get 1 room by id
 app.MapGet("/api/rooms/{id}", async (int id , AppDbContext db) =>
 {
     var room = await db.Rooms.FindAsync(id);
     return room is not null ? Results.Ok(room) : Results.NotFound();
 })
 .WithName("GetRoomId");
-
-// new room add
-app.MapPost("/api/rooms", async (Room room, AppDbContext db) =>
-{
-    db.Rooms.Add(room);
-    await db.SaveChangesAsync();
-    return Results.Created($"/api/rooms/{room.Id}", room);
-})
-.WithName("CreateRoom");
-
-// room info change
-app.MapPut("/api/rooms/{id}", async (int id, Room updatedRoom, AppDbContext db) =>
-{
-    var room = await db.Rooms.FindAsync(id);
-    if (room is null) return Results.NotFound();
-
-    room.Name = updatedRoom.Name;
-    room.Capacity = updatedRoom.Capacity;
-    room.PositionX = updatedRoom.PositionX;
-    room.PositionY = updatedRoom.PositionY;
-    room.Width = updatedRoom.Width;
-    room.Height = updatedRoom.Height;
-
-    await db.SaveChangesAsync();
-    return Results.Ok(room);
-})
-.WithName("UpdateRoom");
-
-// room delete
-app.MapDelete("/api/rooms/{id}", async (int id, AppDbContext db) =>
-{
-    var room = await db.Rooms.FindAsync(id);
-    if (room is null) return Results.NotFound();
-
-    db.Rooms.Remove(room);
-    await db.SaveChangesAsync();
-    return Results.NoContent();
-})
-.WithName("DeleteRoom");
 
 // ===== auth API =====
 
@@ -214,18 +172,9 @@ app.MapPost("/api/auth/change-password", async (ChangePasswordRequest req, Claim
 })
 .WithName("ChangePassword");
 
-// ===== user API =====
-
-// user choose dropdown user list (password not given ofc)
-app.MapGet("/api/users", async (AppDbContext db) =>
-    await db.Users
-        .Select(u => new { u.Id, u.Name })
-        .ToListAsync())
-    .WithName("GetUsers");
-
 // ===== booking API =====
 
-// that 1 room reservations that day
+// Get bookings for a day (optionally for 1 room)
 app.MapGet("/api/bookings", async (int? roomId, DateTime date, AppDbContext db) =>
 {
     var dayStart = date.Date;
@@ -256,7 +205,7 @@ app.MapGet("/api/bookings", async (int? roomId, DateTime date, AppDbContext db) 
 })
 .WithName("GetBookings");
 
-// new reservation check overlap
+// Create a booking (checks business rules & overlap)
 app.MapPost("/api/bookings", async (CreateBookingRequest req, ClaimsPrincipal principal, AppDbContext db) =>
 {
     // Only logged-in users can book & the booker is taken from the cookie
