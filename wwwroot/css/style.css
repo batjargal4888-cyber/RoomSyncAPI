@@ -68,6 +68,22 @@ body {
     opacity: 0.7;
 }
 
+/* Center column: today's date & time */
+.now-label {
+    justify-self: center;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* Right column: signed-in user's name */
+.user {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+}
+
 /* =====  4. 3-column layout ===== */
 .layout {
     display: grid;
@@ -102,25 +118,13 @@ body {
     width: auto;
     aspect-ratio: 830 / 1160;
     margin: 16px auto 0;
-    border: 1px solid var(--line);
-    background-color: #ffffff;
+    background-color: #eef3e8;
     background-image: 
         linear-gradient(var(--grid) 1px, transparent 1px),
         linear-gradient(90deg, var(--grid) 1px, transparent 1px);
     background-size: 24px 24px;
-}
-
-/* Center column: today's date & time */
-.now-label {
-    justify-self: center;
-    font-size: 14px;
-    opacity: 0.8;
-}
-
-/* Right column: signed-in user's name */
-.user {
-    justify-self: end;
-    font-size: 14px;
+    border: 4px solid var(--green-900); /* outer wall */
+    border-radius: 6px;
 }
 
 /* ===== Map header & legend ===== */
@@ -156,9 +160,9 @@ body {
     border: 1px solid currentColor;
 }
 
-.swatch.free     { background: var(--free); }
-.swatch.busy     { background: var(--busy); }
-.swatch.selected { background: var(--selected); }
+.swatch.free     { background: #ffffff; border-color: var(--green-300); }
+.swatch.busy     { background: #fbeeea; border-color: var(--busy); }
+.swatch.selected { background: #fdf5e4; border-color: var(--selected);}
 
 /* ===== Stats ===== */
 .stats {
@@ -206,37 +210,93 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 2px;
-    border: 1.5px solid var(--line);
-    background: rgba(107, 144, 113, 0.10);
+    gap: 4px;
+    background: #ffffff;
+    border: 1.5px solid var(--green-300);
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(15, 42, 29, 0.08);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: border-color 0.15s, background 0.15s;
 }
 
 .room:hover {
-    background: rgba(107, 144, 113, 0.22);
+    border-color: var(--green-500);
+    background: #f7faf2;
 }
 
 .room .name {
-    font-family: var(--mono);
-    font-size: 18px;
+    font-size: 22px;
     font-weight: 700;
+    color: var(--green-900);
 }
 
 .room .cap {
     font-size: 12px;
-    opacity: 0.7;
+    color: var(--green-500);
 }
 
 .room.busy {
     border-color: var(--busy);
-    background: rgba(200, 85, 61, 0.15);
+    background: #fbeeea;
+}
+
+.room.busy .name{
+    color: var(--busy);
 }
 
 .room.selected {
     border-color: var(--selected);
     border-width: 2.5px;
-    background: rgba(217, 154, 30, 0.18);
+    background: #fdf5e4;
+}
+
+/* Common areas (corridor, entrance, lounge): tinted like the plan */
+.area {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    letter-spacing: 0.3em;
+    color: var(--green-500);
+    pointer-events: none;
+}
+
+.area.vertical {
+    writing-mode: vertical-rl;
+    font-size: 14px;
+    letter-spacing: 0.6em;
+}
+
+/* Label in the corner (away from the lobby furniture) */
+.area.corner {
+    place-items: end start;
+    padding: 0 0 7% 3%;
+}
+
+/* Lobby tables */
+.round-table {
+    position: absolute;
+    background: #ffffff;
+    border: 1.5px solid var(--green-500);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* Lobby sofa */
+.sofa {
+    position: absolute;
+    background: var(--green-100);
+    border: 1.5px solid var(--green-500);
+    border-radius: 6px;
+    pointer-events: none;
+}
+
+/* Gap in the outer wall = entrance door */
+.door {
+    position: absolute;
+    top: 100%;
+    height: 4px;
+    background: var(--paper);
 }
 
 /* ===== Room detail ===== */
@@ -585,17 +645,58 @@ body {
     transform: translate(-50%, 0);
 }
 
-/* ===== Phone ===== */
-@media (max-width: 768px) {
+/* ===== Tablet / small laptop ===== */
+@media (max-width: 1200px) {
     .layout {
-        grid-template-columns: 1fr;
-        padding: 12px;
+        grid-template-columns: 1fr 300px;
+        grid-template-areas: 
+            "map calendar"
+            "map panel";
     }
 
+    .map-card { grid-area: map; }
+    .calendar-card { grid-area: calendar; }
+    .panel { grid-area: panel; }
+
+    /* Size the floor by width, not by screen height */
     .floor {
         height: auto;
         width: 100%;
         min-height: 0;
+    }
+}
+
+/* ===== Phone ===== */
+@media (max-width: 600px) {
+    .layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "map"
+            "panel"
+            "calendar";
+        padding: 12px;
+    }
+
+    /* Header: title + user only on phones */
+    .app-header {
+        grid-template-columns: 1fr auto;
+        padding: 10px 14px;
+    }
+
+    .now-label,
+    .brand-sub {
+        display: none;
+    }
+
+    .brand-name {
+        font-size: 18px;
+        white-space: nowrap;
+    }
+
+    /* Smaller labels on the small floor */
+    .area {
+        font-size: 10px;
+        letter-spacing: 0.15em;
     }
 }
 
@@ -687,5 +788,21 @@ body {
     font-size: 12px;
     text-align: center;
     opacity: 0.7;
+}
+
+.logout-btn {
+    padding: 4px 10px;
+    background: transparent;
+    color: var(--line);
+    border: 1px solid var(--line-dim);
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.logout-btn:hover {
+    border-color: var(--line);
 }
 

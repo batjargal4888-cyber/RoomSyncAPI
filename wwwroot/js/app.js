@@ -2,6 +2,32 @@
 const BASE_WIDTH = 830;
 const BASE_HEIGHT = 1160;
 
+// Space around each room, so rooms look separated by walls
+const ROOM_GAP = 6;
+
+// Common areas from the floor plan (drawn only, not stored in the DB)
+const AREAS = [
+    { label: "廊下", x: 375, y: 290, width: 210, height: 870 },
+    { label: "入出口", x: 0, y: 945, width: 375, height: 215 },
+    { label: "ロビー", x: 585, y: 850, width: 245, height: 310, corner: true }
+];
+
+// Round tables (600) in the lounge: center point
+const ROUND_TABLES = [
+    { x: 660, y: 980 },
+    { x: 720, y: 1090 }
+];
+const TABLE_SIZE = 70;
+
+// L-shaped corner sofa in the lobby (2 pieces)
+const SOFAS = [
+    { x: 591, y: 856, width: 175, height: 58 }, // along A's wall
+    { x: 766, y: 856, width: 58, height: 298 } // along the outer wall
+];
+
+// Entrance door = a gap in the bottom wall
+const DOOR = { x: 20, width: 140 };
+
 // Currently selected room (null = nothing selected)
 let selectedRoomId = null;
 
@@ -122,11 +148,11 @@ async function loadRooms() {
         const div = document.createElement("div");
         div.className = "room";
 
-        // Position & size relative to the floor
-        div.style.left   = toPercent(room.positionX, BASE_WIDTH);
-        div.style.top    = toPercent(room.positionY, BASE_HEIGHT);
-        div.style.width  = toPercent(room.width, BASE_WIDTH);
-        div.style.height = toPercent(room.height, BASE_HEIGHT);
+        // Position & size relative to the floor (shrunk a little on every side)
+        div.style.left   = toPercent(room.positionX + ROOM_GAP, BASE_WIDTH);
+        div.style.top    = toPercent(room.positionY + ROOM_GAP, BASE_HEIGHT);
+        div.style.width  = toPercent(room.width - ROOM_GAP * 2, BASE_WIDTH);
+        div.style.height = toPercent(room.height - ROOM_GAP * 2, BASE_HEIGHT);
 
         div.innerHTML = `
             <div class="name">${room.name}</div>
@@ -139,6 +165,49 @@ async function loadRooms() {
         roomElements[room.id] = div;
         floor.appendChild(div);
     });
+}
+
+// Place an element on the floor using canvas units
+function placeOnFloor(div, x, y, width, height) {
+    div.style.left = toPercent(x, BASE_WIDTH);
+    div.style.top = toPercent(y, BASE_HEIGHT);
+    div.style.width = toPercent(width, BASE_WIDTH);
+    div.style.height = toPercent(height, BASE_HEIGHT);
+}
+
+// Draw common areas, lounge tables & the entrance door
+function renderAreas() {
+    const floor = document.getElementById("floor");
+
+    AREAS.forEach(area => {
+        const div = document.createElement("div");
+        div.className = "area";
+        if (area.height > area.width * 2) div.classList.add("vertical");
+        if (area.corner) div.classList.add("corner");
+        placeOnFloor(div, area.x, area.y, area.width, area.height);
+        div.textContent  = area.label;
+        floor.appendChild(div);
+    });
+
+    SOFAS.forEach(s => {
+        const div = document.createElement("div");
+        div.className = "sofa";
+        placeOnFloor(div, s.x, s.y, s.width, s.height);
+        floor.appendChild(div);
+    });
+
+    ROUND_TABLES.forEach(t => {
+        const div = document.createElement("div");
+        div.className = "round-table";
+        placeOnFloor(div, t.x - TABLE_SIZE / 2, t.y - TABLE_SIZE / 2, TABLE_SIZE, TABLE_SIZE);
+        floor.appendChild(div);
+    });
+
+    const door = document.createElement("div");
+    door.className = "door";
+    door.style.left  = toPercent(DOOR.x, BASE_WIDTH);
+    door.style.width = toPercent(DOOR.width, BASE_WIDTH);
+    floor.appendChild(door);
 }
 
 // Highlight the clicked room & show its details
@@ -175,7 +244,7 @@ function renderRoomDetail(room) {
                     <select id="endTime"></select>
                 </label>
             </div>
-            <label>目的
+            <label>会議名
                 <input type="text" id="purpose" maxlength="50" placeholder="例：定例ミーティング">
             </label>
             <p id="formError" class="form-error"></p>
@@ -279,7 +348,7 @@ function bookingHtml(b, start, end, now) {
             <span class="tl-time">${toHHMM(start)}</span>
             <span class="tl-dot"></span>
             <div class="tl-card">
-                <span class="tl-title">${escapeHtml(b.purpose) || "(目的なし)"}</span>
+                <span class="tl-title">${escapeHtml(b.purpose) || "(会議名なし)"}</span>
                 <span class="tl-meta">${toHHMM(start)}-${toHHMM(end)}・${formatDuration(end - start)}・${escapeHtml(b.userName)}</span>
                 ${inUse ? `<span class="tl-badge">利用中</span>` : ""}
             </div>
@@ -530,6 +599,7 @@ document.getElementById("logoutBtn").onclick = async () => {
 
 calendarMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 renderCalendar();
+renderAreas();
 updateClock();
 
 // Load the floor only after confirming the user is logged in
